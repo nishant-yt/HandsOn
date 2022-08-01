@@ -17,8 +17,8 @@ import (
 	"sync"
 )
 
-var queue []func()
-var eventTriggered bool
+var queue = make([]func(), 0)
+var eventTriggered = false
 var wg sync.WaitGroup
 
 func main() {
