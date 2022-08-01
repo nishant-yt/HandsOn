@@ -20,58 +20,45 @@ import (
 
 var queue []func()
 var eventTriggered bool
+var wg sync.WaitGroup
+var mtx sync.Mutex
 
 func main() {
-	queue, eventTriggered = make([]func(), 0), false
-	var wg sync.WaitGroup
-	// creating a mutex
-	var mtx sync.Mutex
 
-	wg.Add(7)
-
-	go RegisterCallback(CallbackOne, &queue, &wg, &mtx)
-	go RegisterCallback(CallbackTwo, &queue, &wg, &mtx)
-	go RegisterCallback(CallbackThree, &queue, &wg, &mtx)
-	go RegisterCallback(CallbackFour, &queue, &wg, &mtx)
-	go RegisterCallback(CallbackFive, &queue, &wg, &mtx)
-	go RegisterCallback(CallbackSix, &queue, &wg, &mtx)
-	go RegisterCallback(CallbackSeven, &queue, &wg, &mtx)
-
+	wg.Add(10)
+	go RegisterCallback(CallbackOne, &wg, &mtx)
+	go RegisterCallback(CallbackTwo, &wg, &mtx)
+	go RegisterCallback(CallbackThree, &wg, &mtx)
+	go RegisterCallback(CallbackFour, &wg, &mtx)
+	go RegisterCallback(CallbackFive, &wg, &mtx)
+	go RegisterCallback(CallbackSix, &wg, &mtx)
+	go RegisterCallback(CallbackSeven, &wg, &mtx)
+	go Events(&wg, &mtx)
+	go RegisterCallback(CallbackEight, &wg, &mtx)
+	go RegisterCallback(CallbackNine, &wg, &mtx)
 	wg.Wait()
-
-	fmt.Println(eventTriggered)
-	ch := make(chan bool)
-	go Events(&queue, ch, &eventTriggered)
-	//<-ch
-	wg.Add(2)
-
-	go RegisterCallback(CallbackEight, &queue, &wg, &mtx)
-	go RegisterCallback(CallbackNine, &queue, &wg, &mtx)
-	wg.Wait()
-	<-ch
-	fmt.Println(eventTriggered)
-
 }
 
-func Events(rqueue *[]func(), ch chan bool, isEventDone *bool) {
-	fmt.Println("Queue: ", *rqueue, "Len of Queue: ", len(*rqueue))
-	*isEventDone = true
-	for len(*rqueue) > 0 {
-		(*rqueue)[0]()
-		(*rqueue) = (*rqueue)[1:]
+func Events(wg *sync.WaitGroup, mtx *sync.Mutex) {
+	defer wg.Done()
+	mtx.Lock()
+	eventTriggered = true
+	mtx.Unlock()
+	for len(queue) > 0 {
+		queue[0]()
+		queue = queue[1:]
 	}
-	ch <- true
 }
 
-func RegisterCallback(callbackfunc func(), rqueue *[]func(), wg *sync.WaitGroup, mtx *sync.Mutex) {
+func RegisterCallback(callbackfunc func(), wg *sync.WaitGroup, mtx *sync.Mutex) {
+	defer wg.Done()
 	if eventTriggered == false {
 		mtx.Lock()
-		(*rqueue) = append((*rqueue), callbackfunc)
+		queue = append(queue, callbackfunc)
 		mtx.Unlock()
 	} else {
 		callbackfunc()
 	}
-	wg.Done()
 }
 
 func CallbackOne() {

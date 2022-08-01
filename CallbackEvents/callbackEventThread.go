@@ -19,59 +19,44 @@ import (
 
 var queue []func()
 var eventTriggered bool
+var wg sync.WaitGroup
 
 func main() {
-	queue, eventTriggered = make([]func(), 0), false
-	var wg sync.WaitGroup
 
-	// Registring 7 functions concurrently in the buffer
-	wg.Add(7)
-	go RegisterCallback(CallbackOne, &queue, &wg)
-	go RegisterCallback(CallbackTwo, &queue, &wg)
-	go RegisterCallback(CallbackThree, &queue, &wg)
-	go RegisterCallback(CallbackFour, &queue, &wg)
-	go RegisterCallback(CallbackFive, &queue, &wg)
-	go RegisterCallback(CallbackSix, &queue, &wg)
-	go RegisterCallback(CallbackSeven, &queue, &wg)
-
+	wg.Add(10)
+	go RegisterCallback(CallbackOne, &wg)
+	go RegisterCallback(CallbackTwo, &wg)
+	go RegisterCallback(CallbackThree, &wg)
+	go RegisterCallback(CallbackFour, &wg)
+	go RegisterCallback(CallbackFive, &wg)
+	go RegisterCallback(CallbackSix, &wg)
+	go RegisterCallback(CallbackSeven, &wg)
+	// Triggering The event
+	go Events(&wg)
+	// Registering another 2 events after the event
+	go RegisterCallback(CallbackEight, &wg)
+	go RegisterCallback(CallbackNine, &wg)
 	wg.Wait()
-
-	fmt.Println(eventTriggered)
-	ch := make(chan bool)
-
-	// Event has been triggred
-	go Events(&queue, ch, &eventTriggered)
-
-	//<-ch
-
-	// Registering another 2 events
-	wg.Add(2)
-
-	go RegisterCallback(CallbackEight, &queue, &wg)
-	go RegisterCallback(CallbackNine, &queue, &wg)
-	wg.Wait()
-	<-ch
-	fmt.Println(eventTriggered)
 
 }
 
-func Events(rqueue *[]func(), ch chan bool, isEventDone *bool) {
-	fmt.Println("Queue: ", *rqueue, "Len of Queue: ", len(*rqueue))
-	*isEventDone = true
-	for len(*rqueue) > 0 {
-		(*rqueue)[0]()
-		(*rqueue) = (*rqueue)[1:]
+func Events(wg *sync.WaitGroup) {
+	defer wg.Done()
+
+	eventTriggered = true
+	for len(queue) > 0 {
+		queue[0]()
+		queue = queue[1:]
 	}
-	ch <- true
 }
 
-func RegisterCallback(callbackfunc func(), rqueue *[]func(), wg *sync.WaitGroup) {
+func RegisterCallback(callbackfunc func(), wg *sync.WaitGroup) {
+	defer wg.Done()
 	if eventTriggered == false {
-		(*rqueue) = append((*rqueue), callbackfunc)
+		queue = append(queue, callbackfunc)
 	} else {
 		callbackfunc()
 	}
-	wg.Done()
 }
 
 func CallbackOne() {

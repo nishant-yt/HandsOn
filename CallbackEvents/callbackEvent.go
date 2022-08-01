@@ -13,38 +13,36 @@ package main
 import "fmt"
 
 // declaring buffer and tracker to keep track of event triggered
-var registerQueue []func()
-var eventTriggered bool
+var registerQueue = make([]func(), 0)
+var eventTriggered = false
 
 func main() {
 
-	registerQueue, eventTriggered = make([]func(), 0), false
-
 	// Registring two functions in register callback
-	RegisterCallback(&registerQueue, CallbackOne)
-	RegisterCallback(&registerQueue, CallbackTwo)
+	RegisterCallback(CallbackOne)
+	RegisterCallback(CallbackTwo)
 
 	// Event is triggerd
-	Events(&registerQueue)
+	Events()
 
 	// After the event , another function is registered in callback
-	RegisterCallback(&registerQueue, CallbackThree)
+	RegisterCallback(CallbackThree)
 }
 
-func Events(registerQueue *[]func()) {
+func Events() {
 	// If event is trigerred , we set the variable
 	eventTriggered = true
-	for len(*registerQueue) > 0 {
-		(*registerQueue)[0]()
-		(*registerQueue) = (*registerQueue)[1:]
+	for len(registerQueue) > 0 {
+		registerQueue[0]()
+		registerQueue = registerQueue[1:]
 	}
 }
 
-func RegisterCallback(registerQueue *[]func(), callbackfunc func()) {
+func RegisterCallback(callbackfunc func()) {
 	// If event is not triggered the store the function in the buffer for later execution
 	// otherwise directly execute the function
 	if eventTriggered == false {
-		(*registerQueue) = append((*registerQueue), callbackfunc)
+		registerQueue = append(registerQueue, callbackfunc)
 	} else {
 		callbackfunc()
 	}
