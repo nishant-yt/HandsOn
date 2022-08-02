@@ -41,9 +41,17 @@ func main() {
 
 func Events(wg *sync.WaitGroup, mtx *sync.Mutex) {
 	defer wg.Done()
+	/*
+		// Putting lock around the eventTriggered will work
+		mtx.Lock()
+		eventTriggered = true
+		mtx.Unlock()
+	*/
+
+	// With Just calling Lock and Unlock , we are sort of creating a "BARRIER" to avoid race condition and this will also work
 	mtx.Lock()
-	eventTriggered = true
 	mtx.Unlock()
+	eventTriggered = true
 	for len(queue) > 0 {
 		queue[0]()
 		queue = queue[1:]
@@ -52,12 +60,21 @@ func Events(wg *sync.WaitGroup, mtx *sync.Mutex) {
 
 func RegisterCallback(callbackfunc func(), wg *sync.WaitGroup, mtx *sync.Mutex) {
 	defer wg.Done()
+	// TO Handle cases where a callback func calls another callback from itself "see CallbackTen() calling CallbackEleven"
+	// we have to protect both if and else
+	mtx.Lock()
 	if eventTriggered == false {
-		mtx.Lock()
+		/*
+			This will only work when we have callbacks calling
+			mtx.Lock()
+			queue = append(queue, callbackfunc)
+			mtx.Unlock()
+		*/
 		queue = append(queue, callbackfunc)
 		mtx.Unlock()
 	} else {
 		callbackfunc()
+		mtx.Unlock()
 	}
 }
 
@@ -96,3 +113,14 @@ func CallbackEight() {
 func CallbackNine() {
 	fmt.Println("TEST NINE")
 }
+
+/*
+func CallbackTen() {
+	RegisterCallback(CallbackEleven, &wg, &mtx)
+	fmt.Println("TEST TEN")
+}
+
+func CallbackEleven() {
+	fmt.Println("TEST ELEVEN")
+}
+*/
